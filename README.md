@@ -16,4 +16,4 @@
    2. exector模块启动jvm,加载合约相应的jar包,调用合约中相应的查询方法
 
 ## 合约示例
-- [java开发的guess猜数字游戏合约](src/main/java/cn/chain33/jvm/dapp/guess/README.md)
+- [java开发的guess猜数字游戏合约](src/main/java/cn/chain33/jvm/dapp/guess)
