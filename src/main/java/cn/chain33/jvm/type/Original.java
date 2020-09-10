@@ -7,7 +7,7 @@ import java.util.LinkedHashMap;
  */
 public class Original {
 
-    public LinkedHashMap newLinkedHashMap(){
+    public LinkedHashMap newLinkedHashMap() {
         //TODO
         return new LinkedHashMap();
     }

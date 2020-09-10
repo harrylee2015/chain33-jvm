@@ -23,22 +23,21 @@ package cn.chain33.jvm.api;
 
 /**
  * All chain33 account operations are in this class
- *
  */
 public class Account {
 
     // frozen amout from the account
-    public boolean execFrozen(String from, long amount){
+    public boolean execFrozen(String from, long amount) {
         return true;
     }
 
     // active amout for the account
-    public boolean execActive(String from, long amount){
+    public boolean execActive(String from, long amount) {
         return false;
     }
 
     // transfer amount between two account within the same contract
-    public boolean execTransfer(String from, String to, long amount){
+    public boolean execTransfer(String from, String to, long amount) {
         return true;
     }
 

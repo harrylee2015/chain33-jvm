@@ -7,12 +7,13 @@ import com.google.gson.Gson;
 import com.fuzamei.chain33.LocalDB;
 import cn.chain33.jvm.interfaces.Storage;
 
-public class Record implements Storage  {
+public class Record implements Storage {
+    private static final Record INSTANCE = new Record();
     private String address;
     //(round->(guessNumber->ticketNumber))
-    private LinkedHashMap<Integer,LinkedHashMap<Integer,Integer>> guessRecord;
+    private LinkedHashMap<Integer, LinkedHashMap<Integer, Integer>> guessRecord;
     //(round->bonus)
-    private LinkedHashMap<Integer,Long> prizeRecord;
+    private LinkedHashMap<Integer, Long> prizeRecord;
 
     public String getAddress() {
         return address;
@@ -38,36 +39,68 @@ public class Record implements Storage  {
         this.prizeRecord = prizeRecord;
     }
 
-    public Record loadData(){
-      byte[] values = LocalDB.getFromLocal(Blockchain.getFrom().getBytes());
-      if (values==null){
-          Record record =new Record();
-          record.setAddress(Blockchain.getFrom());
-          record.guessRecord = new LinkedHashMap<Integer,LinkedHashMap<Integer,Integer>>();
-          record.prizeRecord = new LinkedHashMap<Integer,Long>();
-          return  record;
-      }
-      Gson gson = new Gson();
-      Record record = gson.fromJson(values.toString(),new Record().getClass());
-      return record;
-  }
-    public Record loadData(String from){
-        byte[] values = LocalDB.getFromLocal(from.getBytes());
-        if (values==null){
-            Record record =new Record();
-            record.setAddress(from);
-            record.guessRecord = new LinkedHashMap<Integer,LinkedHashMap<Integer,Integer>>();
-            record.prizeRecord = new LinkedHashMap<Integer,Long>();
-            return  record;
+    public static final Record getInstance(String... args) {
+        if (args.length == 0) {
+            return INSTANCE.loadData();
+        } else {
+            return INSTANCE.loadData(args[0]);
+        }
+    }
+
+    public Record loadData() {
+        byte[] values = LocalDB.getFromLocal(Blockchain.getFrom().getBytes());
+        if (values == null) {
+            Record record = new Record();
+            record.setAddress(Blockchain.getFrom());
+            record.guessRecord = new LinkedHashMap<Integer, LinkedHashMap<Integer, Integer>>();
+            record.prizeRecord = new LinkedHashMap<Integer, Long>();
+            return record;
         }
         Gson gson = new Gson();
-        Record record = gson.fromJson(values.toString(),new Record().getClass());
+        Record record = gson.fromJson(values.toString(), new Record().getClass());
         return record;
     }
 
-  public boolean saveData(){
-      Gson gson = new Gson();
-      String jsonStr=gson.toJson(this);
-      return LocalDB.setLocal(this.address.getBytes(),jsonStr.getBytes());
-  }
+    public Record loadData(String from) {
+        byte[] values = LocalDB.getFromLocal(from.getBytes());
+        if (values == null) {
+            Record record = new Record();
+            record.setAddress(from);
+            record.guessRecord = new LinkedHashMap<Integer, LinkedHashMap<Integer, Integer>>();
+            record.prizeRecord = new LinkedHashMap<Integer, Long>();
+            return record;
+        }
+        Gson gson = new Gson();
+        Record record = gson.fromJson(values.toString(), new Record().getClass());
+        return record;
+    }
+
+    public boolean saveData() {
+        Gson gson = new Gson();
+        String jsonStr = gson.toJson(this);
+        return LocalDB.setLocal(this.address.getBytes(), jsonStr.getBytes());
+    }
+
+    /**
+     * 获取指定某一轮的投注信息
+     *
+     * @param round
+     * @return
+     */
+    public LinkedHashMap<Integer, Integer> getGuessRecordByRound(Integer round) {
+        return this.getGuessRecord().get(round);
+    }
+
+    /**
+     * 查询指定某一轮的中奖金额
+     *
+     * @param round
+     * @return
+     */
+    public Long getBonusByRound(Integer round) {
+        if (this.getPrizeRecord() != null) {
+            return this.getPrizeRecord().get(round);
+        }
+        return 0l;
+    }
 }

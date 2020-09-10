@@ -23,7 +23,6 @@ package cn.chain33.jvm.api;
 
 /**
  * All chain33 state database operations are in this class
- *
  */
 public class StateDB {
     // set value to state db
