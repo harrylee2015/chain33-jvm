@@ -1,13 +1,13 @@
 package cn.chain33.jvm.userlib;
 
-import junit.framework.TestCase;
 import junit.framework.Assert;
-import cn.chain33.jvm.userlib.Chain33Map;
+import junit.framework.TestCase;
 
 
 public class Chain33MapTest extends TestCase {
-//    Chain33Map<String,Integer> chain33Map = new Chain33Map<String,Integer>();
+    //    Chain33Map<String,Integer> chain33Map = new Chain33Map<String,Integer>();
     private static int entryCount = 48;
+
     public void putTest() {
         Chain33Map<Integer, String> map = new Chain33Map<>();
         int count = 5;
@@ -26,6 +26,7 @@ public class Chain33MapTest extends TestCase {
             Assert.assertEquals(String.valueOf(key), map.get(key));
         }
     }
+
     private int createCollisionKey(int val) {
         return val * 16;
     }

@@ -1,15 +1,14 @@
 package cn.chain33.jvm.dapp.guess;
 
+import cn.chain33.jvm.interfaces.Storage;
+import com.fuzamei.chain33.Account;
+import com.fuzamei.chain33.Blockchain;
+import com.fuzamei.chain33.LocalDB;
+import com.fuzamei.chain33.StateDB;
+import com.google.gson.Gson;
+
 import java.util.LinkedHashMap;
 import java.util.Map;
-
-import com.google.gson.Gson;
-import com.fuzamei.chain33.StateDB;
-import com.fuzamei.chain33.LocalDB;
-import com.fuzamei.chain33.Blockchain;
-import com.fuzamei.chain33.Account;
-import cn.chain33.jvm.interfaces.Storage;
-import cn.chain33.jvm.dapp.guess.Record;
 
 public class Guess implements Storage {
     private static final Guess INSTANCE = new Guess();

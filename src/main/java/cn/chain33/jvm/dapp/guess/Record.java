@@ -1,11 +1,11 @@
 package cn.chain33.jvm.dapp.guess;
 
-import java.util.LinkedHashMap;
-
-import com.fuzamei.chain33.Blockchain;
-import com.google.gson.Gson;
-import com.fuzamei.chain33.LocalDB;
 import cn.chain33.jvm.interfaces.Storage;
+import com.fuzamei.chain33.Blockchain;
+import com.fuzamei.chain33.LocalDB;
+import com.google.gson.Gson;
+
+import java.util.LinkedHashMap;
 
 public class Record implements Storage {
     private static final Record INSTANCE = new Record();
