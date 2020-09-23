@@ -1,12 +1,10 @@
 package cn.chain33.jvm;
-
 import java.io.*;
 import java.lang.reflect.Method;
-import java.math.BigDecimal;
 import java.net.MalformedURLException;
 import java.util.ArrayList;
 import java.util.Enumeration;
-import java.util.HashMap;
+import java.util.Hashtable;
 import java.util.List;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
@@ -28,26 +26,21 @@ public class Loader extends ClassLoader {
     /**
      * 采取将所有的jar包中的class读取到内存中
      * 然后如果需要读取的时候，再从data中查找
-     * 缓存
+     * data  (合约名称->(类文名-->类字节码))
+     * 用hashTable存储，线程安全，查询速度相对较快
      */
-    private static HashMap<String, HashMap<String, byte[]>> data = new HashMap<String, HashMap<String, byte[]>>();
+    private static Hashtable<String, Hashtable<String, byte[]>> data = new Hashtable<String, Hashtable<String, byte[]>>();
     /**
      * contractClass 类文件->合约名称
      */
-    private static HashMap<String, String> contractClass = new HashMap<String, String>();
+    private static Hashtable<String, String> contractClass = new Hashtable<String, String>();
     /**
      * entryClass 合约名称->合约入口类
      */
-    private static HashMap<String, String> entryClass = new HashMap<String, String>();
+    private static Hashtable<String, String> entryClass = new Hashtable<String, String>();
 
     /**
-     * 只需要指定项目路径就好
-     * 默认jar加载路径是目录下{PROJECT}/jvm/lib/
-     * 默认class加载路径是目录下{PROJECT}/jvm/classes/
-     *
-     * @throws MalformedURLException
-     * @throws SecurityException
-     * @throws NoSuchMethodException
+     *空的构造函数
      */
     public Loader() throws NoSuchMethodException, SecurityException, MalformedURLException {
     }
@@ -76,21 +69,20 @@ public class Loader extends ClassLoader {
     }
 
     /**
-     * 加载jar包
-     *
-     * @param contractName jar包名称,不带.jar
+     * 加载合约
+     * @param contractName
      * @throws NoSuchMethodException
      * @throws SecurityException
      * @throws MalformedURLException
      */
-    public Loader(String contractName) throws NoSuchMethodException, SecurityException, MalformedURLException {
+    public static void loadContract(String contractName) throws NoSuchMethodException, SecurityException, MalformedURLException {
         File directory = new File(contractName + ".jar");
         String path = directory.getAbsolutePath();
         if (data.containsKey(contractName)) {
-            System.out.println("xxxxxx");
             return;
         }
-        preReadJarFile(path);
+        Loader loader = new Loader();
+        loader.preReadJarFile(path);
 
     }
 
@@ -124,11 +116,7 @@ public class Loader extends ClassLoader {
      */
     private byte[] getClassFromMap(String name) {
         //获取合约名
-        System.out.println("contractClass.get(name):" + name);
         if (contractClass.containsKey(name)) {
-            //TODO 去除map中的引用，避免GC无法回收
-            System.out.println("contract name:" + contractClass.get(name));
-            System.out.println("contractClass.get(name):" + data.get(contractClass.get(name)));
             return data.get(contractClass.get(name)).get(name);
         }
         return null;
@@ -209,13 +197,12 @@ public class Loader extends ClassLoader {
      * @throws IOException
      */
     private void readJAR(JarFile jar) throws IOException {
-        HashMap<String, byte[]> map = new HashMap<String, byte[]>(64);
+        Hashtable<String, byte[]> map = new Hashtable<String, byte[]>(64);
         Enumeration<JarEntry> en = jar.entries();
         String contractName = "";
         while (en.hasMoreElements()) {
             JarEntry je = en.nextElement();
             String name = je.getName();
-            System.out.println("name:" + name);
             if (name.endsWith(".class")) {
                 String clss = name.replace(".class", "").replaceAll("/", ".");
                 File file = new File(jar.getName().trim());
@@ -280,8 +267,6 @@ public class Loader extends ClassLoader {
 
     // 定义一个主方法
     public static void main(String[] args) {
-        double upTime;//方法的执行时间(秒)
-        long startTime = System.currentTimeMillis(); //获取开始时间
         // 如果运行该程序时没有参数，即没有目标类
         if (args.length < 1) {
             System.out.println("java CompileClassLoader ClassName");
@@ -294,10 +279,19 @@ public class Loader extends ClassLoader {
         System.arraycopy(args, 1, progArgs
                 , 0, progArgs.length);
         try {
-            Loader loader = new Loader(progClass);
+            Loader loader = new Loader();
+            //检测合约是否存在
+            if (!isExist(progClass)) {
+                //加载合约
+                loader.loadContract(progClass);
+            }
             System.out.println("processClass:" + getEntryClass(progClass));
+            long startTime = System.nanoTime(); //获取开始时间
             // 加载需要运行的类
             Class<?> clazz = loader.loadClass(getEntryClass(progClass));
+            long endTime = System.nanoTime(); //获取结束时间
+            // 1s=10^9ns
+            System.out.println("start time:"+startTime+"ns,end time:"+endTime+"ns,exc cost time:" + (endTime - startTime)+"ns");
             System.out.println("processClass:" + getEntryClass(progClass));
             // 获取需要运行的类的主方法
             Method main = clazz.getMethod("main", (new String[0]).getClass());
@@ -306,9 +300,6 @@ public class Loader extends ClassLoader {
         } catch (Exception e) {
             e.printStackTrace();
         }
-        long endTime = System.currentTimeMillis(); //获取结束时间
-        upTime = new BigDecimal(endTime - startTime).divide(new BigDecimal(1000)).doubleValue();//耗时(秒)
-        System.out.println("exc cost time:" + upTime);
     }
 
 
@@ -327,7 +318,7 @@ public class Loader extends ClassLoader {
         Loader loader = new Loader();
         //检测合约是否存在
         if (!isExist(contractName)) {
-            loader = new Loader(contractName);
+            loader.loadContract(contractName);
         }
         // 加载需要运行的类
         Class<?> clazz = loader.loadClass(getEntryClass(contractName));
@@ -352,7 +343,7 @@ public class Loader extends ClassLoader {
         Loader loader = new Loader();
         //检测合约是否存在
         if (!isExist(contractName)) {
-            loader = new Loader(contractName);
+            loader.loadContract(contractName);
         }
         // 加载需要运行的类
         Class<?> clazz = loader.loadClass(getEntryClass(contractName));
