@@ -1,13 +1,12 @@
 package cn.chain33.jvm.dapp.guess;
 
-import cn.chain33.jvm.interfaces.Storage;
 import com.fuzamei.chain33.Blockchain;
 import com.fuzamei.chain33.LocalDB;
 import com.google.gson.Gson;
 
 import java.util.LinkedHashMap;
 
-public class Record implements Storage {
+public class Record {
     private static final Record INSTANCE = new Record();
     private String address;
     //(round->(guessNumber->ticketNumber))
@@ -82,7 +81,7 @@ public class Record implements Storage {
     }
 
     /**
-     * 获取指定某一轮的投注信息
+     * Get bet information for a specific round
      *
      * @param round
      * @return
@@ -92,7 +91,7 @@ public class Record implements Storage {
     }
 
     /**
-     * 查询指定某一轮的中奖金额
+     * Query the winning amount of a specified round
      *
      * @param round
      * @return

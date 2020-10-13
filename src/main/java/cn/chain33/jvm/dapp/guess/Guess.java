@@ -1,16 +1,14 @@
 package cn.chain33.jvm.dapp.guess;
 
-import cn.chain33.jvm.interfaces.Storage;
 import com.fuzamei.chain33.Account;
 import com.fuzamei.chain33.Blockchain;
 import com.fuzamei.chain33.LocalDB;
 import com.fuzamei.chain33.StateDB;
 import com.google.gson.Gson;
-
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-public class Guess implements Storage {
+public class Guess {
     private static final Guess INSTANCE = new Guess();
 
     public static final Guess getInstance(Integer... args) {
@@ -25,18 +23,19 @@ public class Guess implements Storage {
     public static final long TicketPrice = 100000000;
     private long startHeight;
     private long endHeight;
-    //记录当轮游戏信息
+
+    //Record the current round game information
     private LinkedHashMap<Integer, LinkedHashMap<String, Integer>> data;
     private String admin;
-    //状态 0开始
+    //State 0 started
     private Boolean isClosed;
-    //中奖数字
+    //lucky numbers
     private Integer luckyNum;
-    //当前游戏轮次
+    //Current game round
     private Integer round;
-    //奖池
+    //bonus Pool
     private long bonusPool;
-    //遗留奖金
+    //legacy bonus
     private long legacyBonus;
 
 
@@ -65,12 +64,6 @@ public class Guess implements Storage {
         return null;
     }
 
-    /**
-     * 查询接口加载数据专用
-     *
-     * @param round
-     * @return
-     */
     public Guess loadData(Integer round) {
         byte[] data = StateDB.getFromState(round.toString().getBytes());
         if (data != null) {
@@ -85,15 +78,13 @@ public class Guess implements Storage {
     public boolean saveData() {
         Gson gson = new Gson();
         String jsonStr = gson.toJson(this);
-        //TODO 数据库操作没有事务处理机制，默认就是执行成功吧
-        //状态数据放在stateDB中
         StateDB.setState(this.round.toString().getBytes(), jsonStr.getBytes());
-        //LastRound,索引信息 放在localDB中
+        //LastRound, The index information is placed in the localdb
         Boolean flag = LocalDB.setLocal(LastRound.getBytes(), this.round.toString().getBytes());
         return flag;
     }
 
-    //只需启动一次
+    //It only needs to be started once
     public boolean startGame() {
         Guess guess = loadData();
         if (guess == null) {
@@ -128,7 +119,6 @@ public class Guess implements Storage {
                     recordMap.put(from, ticketNum);
                 }
                 guess.saveData();
-                //TODO  这里能不能换成静态函数,加入对象？index
                 Record prevRecord = Record.getInstance(from);
                 LinkedHashMap<Integer, LinkedHashMap<Integer, Integer>> guessRecord = prevRecord.getGuessRecord();
                 LinkedHashMap<Integer, Integer> records = guessRecord.get(guess.round);
@@ -168,7 +158,7 @@ public class Guess implements Storage {
             Blockchain.stopTransWithErrInfo("you have to wait for 10 block height!");
             throw new IllegalStateException("you have to wait for 10 block height!");
         }
-        // 0~9,取余
+        // 0~9
         Integer luckyNum = Integer.valueOf(Blockchain.getRandom().getBytes().length % 10);
         guess.luckyNum = luckyNum;
         LinkedHashMap<String, Integer> luckyMap = guess.data.get(luckyNum);
@@ -184,12 +174,13 @@ public class Guess implements Storage {
             count += entry.getValue().longValue();
         }
         for (Map.Entry<String, Integer> entry : luckyMap.entrySet()) {
-            // 60%用于平分， 35%滚动下一轮， 5%平台手续费
+
+            //60% will be used for sharing equally, 35% will be used for rolling the next round, and 5% will be charged for the platform
             long bonus = guess.bonusPool * 6 / 10 * entry.getValue().longValue() / count;
 
             if (Account.execActive(guess.admin, bonus)) {
                 if (Account.execTransfer(guess.admin, entry.getKey(), bonus)) {
-                    //TODO生成 index
+                    // index
                     Record prevRecord = Record.getInstance(entry.getKey());
                     LinkedHashMap<Integer, Long> bonusRecord = prevRecord.getPrizeRecord();
                     bonusRecord.put(guess.round, Long.valueOf(bonus));
@@ -211,14 +202,13 @@ public class Guess implements Storage {
 
     }
 
-    //TODO 调用方式待定
 
     /**
-     * 入口函数，启动args[0]表示调用方法，后面携带参数
+     * tx entry static function.
      *
      * @param args
      */
-    public static void main(String[] args) {
+    public static void tx(String[] args) {
         Guess guess = new Guess();
         switch (args[0]) {
             case "startGame":
@@ -239,4 +229,31 @@ public class Guess implements Storage {
         }
     }
 
+    /**
+     * query
+     *
+     * funcName, args[0],args[1
+     * @param args
+     * @return
+     */
+    public static String[] query(String[] args){
+        if (args.length != 3) {
+            throw new IllegalStateException("insufficient paramenters!");
+        }
+        String[] result=new String[1];
+        Record record = Record.getInstance(args[1]);
+        switch (args[0]) {
+            case "getGuessRecordByRound":
+                LinkedHashMap<Integer, Integer> map=record.getGuessRecordByRound(Integer.valueOf(args[2]));
+                map.toString();
+                result[0]=map.toString();
+                return result;
+            case "getBonusByRound":
+                Long bonus= record.getBonusByRound(Integer.valueOf(args[2]));
+                result[0]= bonus.toString();
+                return result;
+            default:
+                throw new IllegalStateException("Unknown funcName: " + args[0]);
+        }
+    }
 }

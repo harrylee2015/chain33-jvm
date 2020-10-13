@@ -5,6 +5,7 @@ import java.net.MalformedURLException;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.Hashtable;
+import java.util.Map;
 import java.util.List;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
@@ -14,10 +15,9 @@ import java.util.jar.JarFile;
  */
 public class Loader extends ClassLoader {
     /**
-     * lib:表示加载的文件在jar包中
-     * 类似tomcat就是{PROJECT}/jvm/lib/
+     * lib: 放置公共的jar包
      */
-    private String lib;
+    private static String lib = "lib";
     /**
      * classes:表示加载的文件是单纯的class文件
      * 类似tomcat就是{PROJECT}/jvm/classes/
@@ -30,6 +30,10 @@ public class Loader extends ClassLoader {
      * 用hashTable存储，线程安全，查询速度相对较快
      */
     private static Hashtable<String, Hashtable<String, byte[]>> data = new Hashtable<String, Hashtable<String, byte[]>>();
+    /**
+     * 公共第三方工具类库
+     */
+    private static  Hashtable<String, byte[]> common = new Hashtable<String, byte[]>();
     /**
      * contractClass 类文件->合约名称
      */
@@ -75,16 +79,28 @@ public class Loader extends ClassLoader {
      * @throws SecurityException
      * @throws MalformedURLException
      */
-    public static void loadContract(String contractName) throws NoSuchMethodException, SecurityException, MalformedURLException {
+    public static int loadContract(String contractName) {
         File directory = new File(contractName + ".jar");
         String path = directory.getAbsolutePath();
         if (data.containsKey(contractName)) {
-            return;
+            return 0;
         }
-        Loader loader = new Loader();
-        loader.preReadJarFile(path);
-
+        try {
+            Loader loader = new Loader();
+            loader.preReadJarFile(path);
+        }catch (NoSuchMethodException e ){
+            e.printStackTrace();
+            return 1;
+        }catch (SecurityException e){
+            e.printStackTrace();
+            return 2;
+        }catch (MalformedURLException e){
+            e.printStackTrace();
+            return 3;
+        }
+        return 0;
     }
+
 
     /**
      * 按照父类的机制，如果在父类中没有找到的类
@@ -115,9 +131,13 @@ public class Loader extends ClassLoader {
      * @return
      */
     private byte[] getClassFromMap(String name) {
-        //获取合约名
+        //load contract class
         if (contractClass.containsKey(name)) {
             return data.get(contractClass.get(name)).get(name);
+        }
+        //load common class
+        if (common.containsKey(name)){
+            return common.get(name);
         }
         return null;
     }
@@ -171,7 +191,7 @@ public class Loader extends ClassLoader {
             JarFile jar;
             try {
                 jar = new JarFile(f);
-                readJAR(jar);
+                readCommonJAR(jar);
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -187,6 +207,30 @@ public class Loader extends ClassLoader {
             readJAR(jar);
         } catch (IOException e) {
             e.printStackTrace();
+        }
+    }
+
+    private void readCommonJAR(JarFile jar) throws IOException {
+        Enumeration<JarEntry> en = jar.entries();
+        while (en.hasMoreElements()) {
+            JarEntry je = en.nextElement();
+            String name = je.getName();
+            if (name.endsWith(".class")) {
+                String clss = name.replace(".class", "").replaceAll("/", ".");
+                if (this.findLoadedClass(clss) != null) continue;
+
+                InputStream input = jar.getInputStream(je);
+                ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                int bufferSize = 4096;
+                byte[] buffer = new byte[bufferSize];
+                int bytesNumRead = 0;
+                while ((bytesNumRead = input.read(buffer)) != -1) {
+                    baos.write(buffer, 0, bytesNumRead);
+                }
+                byte[] cc = baos.toByteArray();
+                input.close();
+                this.common.put(clss, cc);
+            }
         }
     }
 
@@ -280,23 +324,35 @@ public class Loader extends ClassLoader {
                 , 0, progArgs.length);
         try {
             Loader loader = new Loader();
-            //检测合约是否存在
-            if (!isExist(progClass)) {
-                //加载合约
-                loader.loadContract(progClass);
-            }
-            System.out.println("processClass:" + getEntryClass(progClass));
+
+            loader.preReadJarFile();
+            System.out.println("loadLib jar:");
             long startTime = System.nanoTime(); //获取开始时间
-            // 加载需要运行的类
-            Class<?> clazz = loader.loadClass(getEntryClass(progClass));
+            for(Map.Entry<String, byte[]> entry : loader.common.entrySet()){
+                String mapKey = entry.getKey();
+                byte[] mapValue = entry.getValue();
+                System.out.println(mapKey+":"+mapValue.toString());
+            }
             long endTime = System.nanoTime(); //获取结束时间
             // 1s=10^9ns
             System.out.println("start time:"+startTime+"ns,end time:"+endTime+"ns,exc cost time:" + (endTime - startTime)+"ns");
-            System.out.println("processClass:" + getEntryClass(progClass));
-            // 获取需要运行的类的主方法
-            Method main = clazz.getMethod("main", (new String[0]).getClass());
-            Object[] argsArray = {progArgs};
-            main.invoke(null, argsArray);
+            //检测合约是否存在
+//            if (!isExist(progClass)) {
+//                //加载合约
+//                loader.loadContract(progClass);
+//            }
+//            System.out.println("processClass:" + getEntryClass(progClass));
+//            long startTime = System.nanoTime(); //获取开始时间
+//            // 加载需要运行的类
+//            Class<?> clazz = loader.loadClass(getEntryClass(progClass));
+//            long endTime = System.nanoTime(); //获取结束时间
+//            // 1s=10^9ns
+//            System.out.println("start time:"+startTime+"ns,end time:"+endTime+"ns,exc cost time:" + (endTime - startTime)+"ns");
+//            System.out.println("processClass:" + getEntryClass(progClass));
+//            // 获取需要运行的类的主方法
+//            Method main = clazz.getMethod("main", (new String[0]).getClass());
+//            Object[] argsArray = {progArgs};
+//            main.invoke(null, argsArray);
         } catch (Exception e) {
             e.printStackTrace();
         }
